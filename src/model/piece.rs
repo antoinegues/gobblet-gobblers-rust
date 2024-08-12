@@ -1,0 +1,104 @@
+use crate::model::player::Color;
+
+#[derive(Debug)]
+pub struct Piece {
+    pub size: PieceSize,
+    pub color: Color,
+    pub nested_piece: Option<Box<Piece>>,
+}
+
+impl Piece {
+    pub fn new(piece_size: PieceSize, color: Color) -> Piece {
+        return Piece {
+            size: piece_size,
+            color,
+            nested_piece: None,
+        };
+    }
+
+    pub fn remove_nested_piece(&mut self) -> Option<Box<Piece>> {
+        self.nested_piece.take()
+    }
+
+    pub fn can_be_nested(&self, parent_piece: &Piece) -> bool {
+        self.size < parent_piece.size
+    }
+
+    pub fn cannot_be_nested(&self, parent_piece: &Piece) -> bool {
+        !self.can_be_nested(parent_piece)
+    }
+    pub fn set_nested_piece(&mut self, nested_piece: Piece) {
+        self.nested_piece = Some(Box::from(nested_piece));
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+pub enum PieceSize {
+    Small,
+    Medium,
+    Big,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::model::piece::Piece;
+    use crate::model::piece::PieceSize::{Big, Medium, Small};
+    use crate::model::player::Color::{Blue, Red};
+
+    #[test]
+    fn piece_new_test() {
+        let piece = Piece::new(Big, Red);
+
+        assert_eq!(piece.size, Big);
+        assert_eq!(piece.color, Red);
+        assert!(piece.nested_piece.is_none());
+    }
+
+    #[test]
+    fn piece_can_be_nested_test() {
+        let piece = Piece::new(Medium, Red);
+
+        assert!(piece.can_be_nested(&Piece::new(Big, Red)));
+    }
+
+    #[test]
+    fn piece_cannot_be_nested_test() {
+        let piece = Piece::new(Medium, Red);
+
+        assert!(piece.cannot_be_nested(&Piece::new(Small, Red)));
+    }
+
+    #[test]
+    fn set_nested_piece_test() -> Result<(), ()> {
+        let mut piece = Piece::new(Medium, Red);
+        let nested_piece = Piece::new(Small, Red);
+
+        piece.set_nested_piece(nested_piece);
+
+        match &piece.nested_piece {
+            None => Err(()),
+            Some(nested_piece) => {
+                assert_eq!(nested_piece.size, Small);
+                assert_eq!(nested_piece.color, Red);
+                Ok(())
+            }
+        }
+    }
+
+    #[test]
+    fn remove_nested_piece_test() {
+        let mut piece = Piece::new(Medium, Red);
+
+        assert!(piece.remove_nested_piece().is_none());
+
+        piece.set_nested_piece(Piece::new(Small, Blue));
+
+        let old_nested_piece = piece.remove_nested_piece();
+        assert!(piece.nested_piece.is_none());
+        assert!(old_nested_piece.is_some());
+
+        let old_nested_piece = old_nested_piece.unwrap();
+        assert_eq!(old_nested_piece.size, Small);
+        assert_eq!(old_nested_piece.color, Blue);
+    }
+}
