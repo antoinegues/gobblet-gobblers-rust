@@ -1,7 +1,9 @@
+use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
 use crate::model::game::GameEvent::{BoardUpdateEvent, GameErrorEvent, NewGameEvent};
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CurrentlyNoGame, UnknownError};
 use crate::model::game_instance::GameInstance;
+use crate::model::game_state::GameState;
 use crate::model::listener::Listener;
 use crate::model::piece::PieceSize;
 use crate::model::player::Color;
@@ -20,10 +22,10 @@ impl Default for Game<'_> {
 }
 
 impl<'a> Game<'a> {
-    fn new_game(&mut self) -> Result<GameEvent, GameError> {
+    fn new_game(&mut self) -> Result<GameState, GameError> {
         self.game_instance = Some(GameInstance::default());
         match &self.game_instance {
-            Some(game_instance) => Ok(NewGameEvent(game_instance)),
+            Some(game_instance) => Ok(game_instance.to_game_state()),
             _ => Err(UnknownError),
         }
     }
@@ -33,11 +35,11 @@ impl<'a> Game<'a> {
         x: usize,
         y: usize,
         piece_size: PieceSize,
-    ) -> Result<GameEvent, GameError> {
+    ) -> Result<GameState, GameError> {
         match self.game_instance {
             Some(ref mut game_instance)  => {
                 game_instance.put_piece(x, y, piece_size)?;
-                Ok(BoardUpdateEvent)
+                Ok(game_instance.to_game_state())
             },
             None => Err(CurrentlyNoGame(String::from("Il n'y a aucune partie en cours"))),
         }
@@ -45,8 +47,8 @@ impl<'a> Game<'a> {
 
     pub fn execute(&mut self, game_command: GameCommand) {
         let command_result = match game_command {
-            GameCommand::NewGameCommand => self.new_game(),
-            GameCommand::PutPieceCommand(x, y, size) => self.put_piece(x, y, size),
+            NewGameCommand => self.new_game().map(|game_state| NewGameEvent(game_state)),
+            PutPieceCommand(x, y, size) => self.put_piece(x, y, size).map(|game_state| BoardUpdateEvent(game_state)),
             _ => Err(UnknownError),
         };
 
@@ -72,9 +74,9 @@ pub enum GameCommand {
 }
 
 #[derive(Clone)]
-pub enum GameEvent<'a> {
-    NewGameEvent(&'a GameInstance),
-    BoardUpdateEvent,
+pub enum GameEvent {
+    NewGameEvent(GameState),
+    BoardUpdateEvent(GameState),
     GameWinEvent(Color),
     GameErrorEvent(GameError),
 }
@@ -82,17 +84,17 @@ pub enum GameEvent<'a> {
 #[cfg(test)]
 mod tests {
     use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
-    use crate::model::game::GameEvent::{NewGameEvent};
     use crate::model::game::{Game, GameEvent};
     use crate::model::listener::Listener;
     use std::cell::RefCell;
+    use crate::model::game::GameEvent::{BoardUpdateEvent, NewGameEvent};
     use crate::model::piece::PieceSize::Small;
 
-    struct GameEventListenerMock<'a> {
-        last_event: RefCell<Option<GameEvent<'a>>>,
+    struct GameEventListenerMock {
+        last_event: RefCell<Option<GameEvent>>,
     }
 
-    impl<'a> Listener for GameEventListenerMock<'a> {
+    impl Listener for GameEventListenerMock {
         fn notify(&self, game_event: GameEvent) {
             let mut last_event = self.last_event.borrow_mut();
             *last_event = Some(game_event);
@@ -153,17 +155,19 @@ mod tests {
 
 
         let game_event = game_listener.last_event.borrow_mut().take();
+        game.execute(PutPieceCommand(0, 0, Small));
 
-        let game_instance = match game_event {
-            Some(NewGameEvent(game_instance)) => game_instance,
+        let event = match game_listener.last_event.borrow_mut().take() {
+            Some(event) => event,
             _ => return Err(()),
         };
 
-        game.execute(PutPieceCommand(0, 0, Small));
-
-        match game_instance.get_piece_size(0,0) {
-            Some(Small) => Ok(()),
-            _ => Err(())
+        match event {
+            BoardUpdateEvent(game_state) => match game_state.board.squares[0][0] {
+                Some(_) => Ok(()),
+                None => Err(()),
+            },
+            _ => Err(()),
         }
     }
 }

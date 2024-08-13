@@ -1,5 +1,6 @@
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::PieceNotAvailable;
+use crate::model::game_state::PlayerState;
 use crate::model::piece::PieceSize::{Big, Medium, Small};
 use crate::model::piece::{Piece, PieceSize};
 
@@ -41,6 +42,13 @@ impl Player {
         Err(PieceNotAvailable(String::from(
             "Le joueur ne possède plus de pièce de cette taille",
         )))
+    }
+
+    pub fn to_player_state(&self) -> PlayerState {
+        return PlayerState {
+            color: self.color,
+            pieces: self.pieces.iter().map(|piece| { piece.size }).collect(),
+        }
     }
 }
 
@@ -100,5 +108,35 @@ mod tests {
             Err(PieceNotAvailable(_)) => Ok(()),
             _ => Err(()),
         }
+    }
+
+    #[test]
+    fn player_to_player_state_test() {
+        let mut player = Player::new(Red);
+
+        player.remove_piece(Small).unwrap();
+        player.remove_piece(Medium).unwrap();
+        player.remove_piece(Big).unwrap();
+        player.remove_piece(Big).unwrap();
+
+        let player_state = player.to_player_state();
+
+        assert_eq!(player_state.color, Red);
+
+        let mut piece_small_size_count = 0;
+        let mut piece_medium_size_count = 0;
+        let mut piece_big_size_count = 0;
+
+        for piece_size in player_state.pieces {
+            match piece_size {
+                Small => piece_small_size_count += 1,
+                Medium => piece_medium_size_count += 1,
+                Big => piece_big_size_count += 1,
+            }
+        }
+
+        assert_eq!(piece_small_size_count, 1);
+        assert_eq!(piece_medium_size_count, 1);
+        assert_eq!(piece_big_size_count, 0);
     }
 }

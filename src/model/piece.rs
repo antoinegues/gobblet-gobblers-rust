@@ -1,3 +1,4 @@
+use crate::model::game_state::PieceState;
 use crate::model::player::Color;
 
 #[derive(Debug)]
@@ -29,6 +30,14 @@ impl Piece {
     }
     pub fn set_nested_piece(&mut self, nested_piece: Piece) {
         self.nested_piece = Some(Box::from(nested_piece));
+    }
+
+    pub fn to_piece_state(&self) -> PieceState {
+        PieceState {
+            color: self.color,
+            size: self.size,
+            nested_piece: self.nested_piece.as_ref().map(|nested_piece| Box::from(nested_piece.to_piece_state())),
+        }
     }
 }
 
@@ -100,5 +109,26 @@ mod tests {
         let old_nested_piece = old_nested_piece.unwrap();
         assert_eq!(old_nested_piece.size, Small);
         assert_eq!(old_nested_piece.color, Blue);
+    }
+
+    #[test]
+    fn piece_to_piece_state_test() -> Result<(), ()> {
+        let mut piece = Piece::new(Big, Red);
+        piece.set_nested_piece(Piece::new(Small, Blue));
+
+        let piece_state = piece.to_piece_state();
+
+        assert_eq!(piece_state.color, Red);
+        assert_eq!(piece_state.size, Big);
+        match piece_state.nested_piece {
+            Some(nested_piece) => {
+                if nested_piece.color != Blue || nested_piece.size != Small {
+                    Err(())
+                } else {
+                    Ok(())
+                }
+            }
+            _ => Err(()),
+        }
     }
 }

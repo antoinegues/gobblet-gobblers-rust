@@ -1,9 +1,10 @@
 use super::piece::{Piece, PieceSize};
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CannotPutPieceHere, SquareIsEmpty};
+use crate::model::game_state::{BoardState};
 use crate::model::piece::PieceSize::*;
 use crate::model::player::Color;
-
+use crate::model::player::Color::Blue;
 
 pub struct Board {
     squares: [[Option<Piece>; 3]; 3],
@@ -166,6 +167,22 @@ impl Board {
         self.check_column_win()
             .or(self.check_row_win())
             .or(self.check_diagonal_win())
+    }
+
+    pub fn to_board_state(&self) -> BoardState {
+
+        let mut squares =  [[None, None, None], [None, None, None], [None, None, None]];
+
+        for x in 0..3 {
+            for y in 0..3 {
+                squares[x][y] = self.squares[x][y].as_ref().map(|piece| piece.to_piece_state());
+            }
+        }
+
+
+        BoardState {
+            squares
+        }
     }
 }
 
@@ -571,5 +588,35 @@ mod tests {
             .expect("Impossible de placer la pièce");
 
         assert!(board.check_win().is_none());
+    }
+
+    #[test]
+    fn board_to_board_state_test() {
+        let mut board = Board::default();
+
+        board
+            .put_piece(1, 0, Piece::new(Medium, Red))
+            .expect("Impossible de placer la pièce");
+        board
+            .put_piece(1, 1, Piece::new(Medium, Red))
+            .expect("Impossible de placer la pièce");
+
+        board
+            .put_piece(1, 2, Piece::new(Medium, Red))
+            .expect("Impossible de placer la pièce");
+
+        let mut board_state = board.to_board_state();
+
+        let piece = board_state.squares[1][0].take().unwrap();
+        assert_eq!(piece.color, Red);
+        assert_eq!(piece.size, Medium);
+
+        let piece = board_state.squares[1][1].take().unwrap();
+        assert_eq!(piece.color, Red);
+        assert_eq!(piece.size, Medium);
+
+        let piece = board_state.squares[1][2].take().unwrap();
+        assert_eq!(piece.color, Red);
+        assert_eq!(piece.size, Medium);
     }
 }

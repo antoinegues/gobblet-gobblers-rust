@@ -1,6 +1,7 @@
 use crate::model::board::Board;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{NotYourPiece, SquareIsEmpty};
+use crate::model::game_state::GameState;
 use crate::model::piece::{PieceSize};
 use crate::model::player::Color::{Blue, Red};
 use crate::model::player::{Color, Player};
@@ -82,6 +83,14 @@ impl GameInstance {
 
     pub fn get_piece_color(&self, x: usize, y: usize) -> Option<Color> {
         self.board.get_piece_color(x,y)
+    }
+
+    pub fn to_game_state(&self) -> GameState {
+        GameState {
+            players : [self.players[0].to_player_state(), self.players[1].to_player_state()],
+            board: self.board.to_board_state(),
+            turn: self.turn,
+        }
     }
 }
 
@@ -248,5 +257,16 @@ mod tests {
             Err(PieceNotAvailable(game_error)) => Ok(()),
             _ => Err(()),
         }
+    }
+
+    #[test]
+    pub fn game_instance_to_game_state() {
+        let mut game_instance = GameInstance::default();
+
+        game_instance.next_turn();
+
+        let game_state = game_instance.to_game_state();
+
+        assert_eq!(game_state.turn, 1);
     }
 }

@@ -5,3 +5,4 @@ mod piece;
 mod player;
 mod game_instance;
 mod listener;
+mod game_state;
