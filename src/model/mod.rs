@@ -1,8 +1,11 @@
 pub mod board;
-mod game;
+pub mod game;
 mod game_error;
 mod piece;
 mod player;
 mod game_instance;
-mod listener;
+pub mod listener;
 mod game_state;
+pub mod game_event;
+pub mod game_command;
+pub mod piece_size;

@@ -1,4 +1,5 @@
 use crate::model::game_state::PieceState;
+use crate::model::piece_size::PieceSize;
 use crate::model::player::Color;
 
 #[derive(Debug)]
@@ -41,17 +42,12 @@ impl Piece {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
-pub enum PieceSize {
-    Small,
-    Medium,
-    Big,
-}
+
 
 #[cfg(test)]
 mod tests {
     use crate::model::piece::Piece;
-    use crate::model::piece::PieceSize::{Big, Medium, Small};
+    use crate::model::piece_size::PieceSize::{Big, Medium, Small};
     use crate::model::player::Color::{Blue, Red};
 
     #[test]

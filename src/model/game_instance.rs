@@ -2,7 +2,7 @@ use crate::model::board::Board;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{NotYourPiece, SquareIsEmpty};
 use crate::model::game_state::GameState;
-use crate::model::piece::{PieceSize};
+use crate::model::piece_size::PieceSize;
 use crate::model::player::Color::{Blue, Red};
 use crate::model::player::{Color, Player};
 
@@ -98,7 +98,7 @@ impl GameInstance {
 mod tests {
     use crate::model::game_error::GameError::{NotYourPiece, PieceNotAvailable, SquareIsEmpty};
     use crate::model::game_instance::GameInstance;
-    use crate::model::piece::PieceSize::{Big, Medium, Small};
+    use crate::model::piece_size::PieceSize::{Big, Medium, Small};
     use crate::model::player::Color::{Blue, Red};
 
     #[test]

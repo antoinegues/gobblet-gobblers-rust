@@ -1,18 +1,20 @@
+use std::sync::Arc;
 use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
 use crate::model::game::GameEvent::{BoardUpdateEvent, GameErrorEvent, NewGameEvent};
+use crate::model::game_command::GameCommand;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CurrentlyNoGame, UnknownError};
+use crate::model::game_event::GameEvent;
 use crate::model::game_instance::GameInstance;
 use crate::model::game_state::GameState;
 use crate::model::listener::Listener;
-use crate::model::piece::PieceSize;
-use crate::model::player::Color;
+use crate::model::piece_size::PieceSize;
 
-pub struct Game<'a> {
+pub struct Game {
     game_instance: Option<GameInstance>,
-    listeners: Vec<Box<&'a dyn Listener>>,
+    listeners: Vec<Box<Arc<dyn Listener>>>,
 }
-impl Default for Game<'_> {
+impl Default for Game {
     fn default() -> Self {
         Game {
             game_instance: None,
@@ -21,7 +23,7 @@ impl Default for Game<'_> {
     }
 }
 
-impl<'a> Game<'a> {
+impl Game {
     fn new_game(&mut self) -> Result<GameState, GameError> {
         self.game_instance = Some(GameInstance::default());
         match &self.game_instance {
@@ -56,7 +58,7 @@ impl<'a> Game<'a> {
         self.notify_all(event);
     }
 
-    pub fn subscribe<'b>(&'b mut self, listener: &'a dyn Listener) {
+    pub fn subscribe<'b>(&'b mut self, listener: Arc<dyn Listener>) {
         self.listeners.push(Box::from(listener));
     }
 
@@ -67,28 +69,17 @@ impl<'a> Game<'a> {
     }
 }
 
-pub enum GameCommand {
-    NewGameCommand,
-    PutPieceCommand(usize, usize, PieceSize),
-    MovePieceCommand(usize, usize, usize, usize),
-}
-
-#[derive(Clone)]
-pub enum GameEvent {
-    NewGameEvent(GameState),
-    BoardUpdateEvent(GameState),
-    GameWinEvent(Color),
-    GameErrorEvent(GameError),
-}
 
 #[cfg(test)]
 mod tests {
-    use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
-    use crate::model::game::{Game, GameEvent};
-    use crate::model::listener::Listener;
     use std::cell::RefCell;
-    use crate::model::game::GameEvent::{BoardUpdateEvent, NewGameEvent};
-    use crate::model::piece::PieceSize::Small;
+    use std::sync::Arc;
+    use crate::model::game::Game;
+    use crate::model::game_command::GameCommand::{NewGameCommand, PutPieceCommand};
+    use crate::model::game_event::GameEvent;
+    use crate::model::game_event::GameEvent::{BoardUpdateEvent, NewGameEvent};
+    use crate::model::listener::Listener;
+    use crate::model::piece_size::PieceSize::Small;
 
     struct GameEventListenerMock {
         last_event: RefCell<Option<GameEvent>>,
@@ -126,7 +117,7 @@ mod tests {
             last_event: RefCell::new(None),
         };
 
-        game.subscribe(&game_listener);
+        game.subscribe(Arc::from(game_listener));
 
         game.execute(NewGameCommand);
 
@@ -149,7 +140,7 @@ mod tests {
             last_event: RefCell::new(None),
         };
 
-        game.subscribe(&game_listener);
+        game.subscribe(Arc::from(game_listener));
 
         game.execute(NewGameCommand);
 

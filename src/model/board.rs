@@ -1,10 +1,9 @@
-use super::piece::{Piece, PieceSize};
+use super::piece::{Piece};
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CannotPutPieceHere, SquareIsEmpty};
 use crate::model::game_state::{BoardState};
-use crate::model::piece::PieceSize::*;
+use crate::model::piece_size::PieceSize;
 use crate::model::player::Color;
-use crate::model::player::Color::Blue;
 
 pub struct Board {
     squares: [[Option<Piece>; 3]; 3],
@@ -189,6 +188,7 @@ impl Board {
 #[cfg(test)]
 mod tests {
     use crate::model::board::*;
+    use crate::model::piece_size::PieceSize::{Big, Medium, Small};
     use crate::model::player::Color::{Blue, Red};
 
     #[test]

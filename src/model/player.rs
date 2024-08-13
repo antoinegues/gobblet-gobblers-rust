@@ -1,8 +1,9 @@
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::PieceNotAvailable;
 use crate::model::game_state::PlayerState;
-use crate::model::piece::PieceSize::{Big, Medium, Small};
-use crate::model::piece::{Piece, PieceSize};
+use crate::model::piece_size::PieceSize::{Big, Medium, Small};
+use crate::model::piece::Piece;
+use crate::model::piece_size::PieceSize;
 
 pub struct Player {
     pub color: Color,
@@ -55,7 +56,7 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use crate::model::game_error::GameError::PieceNotAvailable;
-    use crate::model::piece::PieceSize::{Big, Medium, Small};
+    use crate::model::piece_size::PieceSize::{Big, Medium, Small};
     use crate::model::player::Color::Red;
     use crate::model::player::Player;
 
