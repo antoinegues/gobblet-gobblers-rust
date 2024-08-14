@@ -4,4 +4,5 @@ pub enum GameCommand {
     NewGameCommand,
     PutPieceCommand(usize, usize, PieceSize),
     MovePieceCommand(usize, usize, usize, usize),
+    Exit,
 }

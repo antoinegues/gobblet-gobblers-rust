@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
 use crate::model::game::GameEvent::{BoardUpdateEvent, GameErrorEvent, NewGameEvent};
 use crate::model::game_command::GameCommand;
+use crate::model::game_command::GameCommand::MovePieceCommand;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CurrentlyNoGame, UnknownError};
 use crate::model::game_event::GameEvent;
@@ -9,6 +9,7 @@ use crate::model::game_instance::GameInstance;
 use crate::model::game_state::GameState;
 use crate::model::listener::Listener;
 use crate::model::piece_size::PieceSize;
+use std::sync::Arc;
 
 pub struct Game {
     game_instance: Option<GameInstance>,
@@ -39,18 +40,43 @@ impl Game {
         piece_size: PieceSize,
     ) -> Result<GameState, GameError> {
         match self.game_instance {
-            Some(ref mut game_instance)  => {
+            Some(ref mut game_instance) => {
                 game_instance.put_piece(x, y, piece_size)?;
                 Ok(game_instance.to_game_state())
-            },
-            None => Err(CurrentlyNoGame(String::from("Il n'y a aucune partie en cours"))),
+            }
+            None => Err(CurrentlyNoGame(String::from(
+                "Il n'y a aucune partie en cours",
+            ))),
+        }
+    }
+
+    pub fn move_piece(
+        &mut self,
+        origin_x: usize,
+        origin_y: usize,
+        destination_x: usize,
+        destination_y: usize,
+    ) -> Result<GameState, GameError> {
+        match self.game_instance {
+            Some(ref mut game_instance) => {
+                game_instance.move_piece(origin_x, origin_y, destination_x, destination_y)?;
+                Ok(game_instance.to_game_state())
+            }
+            None => Err(CurrentlyNoGame(String::from(
+                "Il n'y a aucune partie en cours",
+            ))),
         }
     }
 
     pub fn execute(&mut self, game_command: GameCommand) {
         let command_result = match game_command {
             NewGameCommand => self.new_game().map(|game_state| NewGameEvent(game_state)),
-            PutPieceCommand(x, y, size) => self.put_piece(x, y, size).map(|game_state| BoardUpdateEvent(game_state)),
+            PutPieceCommand(x, y, size) => self
+                .put_piece(x, y, size)
+                .map(|game_state| BoardUpdateEvent(game_state)),
+            MovePieceCommand(origin_x, origin_y, destination_x, destination_y) => self
+                .move_piece(origin_x, origin_y, destination_x, destination_y)
+                .map(|game_state| BoardUpdateEvent(game_state)),
             _ => Err(UnknownError),
         };
 
@@ -69,25 +95,26 @@ impl Game {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use std::sync::Arc;
     use crate::model::game::Game;
-    use crate::model::game_command::GameCommand::{NewGameCommand, PutPieceCommand};
+    use crate::model::game_command::GameCommand::{
+        MovePieceCommand, NewGameCommand, PutPieceCommand,
+    };
     use crate::model::game_event::GameEvent;
     use crate::model::game_event::GameEvent::{BoardUpdateEvent, NewGameEvent};
     use crate::model::listener::Listener;
-    use crate::model::piece_size::PieceSize::Small;
+    use crate::model::piece_size::PieceSize::{Medium, Small};
+    use crate::model::player::Color::Red;
+    use std::sync::{Arc, Mutex};
 
     struct GameEventListenerMock {
-        last_event: RefCell<Option<GameEvent>>,
+        last_event: Mutex<Option<GameEvent>>,
     }
 
     impl Listener for GameEventListenerMock {
         fn notify(&self, game_event: GameEvent) {
-            let mut last_event = self.last_event.borrow_mut();
+            let mut last_event = self.last_event.lock().unwrap();
             *last_event = Some(game_event);
         }
     }
@@ -114,14 +141,15 @@ mod tests {
     fn new_game_event() -> Result<(), ()> {
         let mut game = Game::default();
         let game_listener = GameEventListenerMock {
-            last_event: RefCell::new(None),
+            last_event: Mutex::new(None),
         };
 
-        game.subscribe(Arc::from(game_listener));
+        let arc = Arc::from(game_listener);
+        game.subscribe(Arc::clone(&arc) as Arc<dyn Listener>);
 
         game.execute(NewGameCommand);
 
-        let last_event = game_listener.last_event.borrow_mut().take();
+        let last_event = arc.last_event.lock().unwrap().take();
 
         match last_event {
             Some(event) => match event {
@@ -133,22 +161,22 @@ mod tests {
     }
 
     #[test]
-    fn put_piece_command_test() -> Result<(),()> {
+    fn put_piece_command_test() -> Result<(), ()> {
         let mut game = Game::default();
 
         let game_listener = GameEventListenerMock {
-            last_event: RefCell::new(None),
+            last_event: Mutex::new(None),
         };
 
-        game.subscribe(Arc::from(game_listener));
+        let arc = Arc::from(game_listener);
+        game.subscribe(Arc::clone(&arc) as Arc<dyn Listener>);
 
         game.execute(NewGameCommand);
 
-
-        let game_event = game_listener.last_event.borrow_mut().take();
         game.execute(PutPieceCommand(0, 0, Small));
 
-        let event = match game_listener.last_event.borrow_mut().take() {
+        let last_event = arc.last_event.lock().unwrap().take();
+        let event = match last_event {
             Some(event) => event,
             _ => return Err(()),
         };
@@ -156,6 +184,46 @@ mod tests {
         match event {
             BoardUpdateEvent(game_state) => match game_state.board.squares[0][0] {
                 Some(_) => Ok(()),
+                None => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn move_piece_command_test() -> Result<(), ()> {
+        let mut game = Game::default();
+
+        let game_listener = GameEventListenerMock {
+            last_event: Mutex::new(None),
+        };
+
+        let arc = Arc::from(game_listener);
+        game.subscribe(Arc::clone(&arc) as Arc<dyn Listener>);
+
+        game.execute(NewGameCommand);
+
+        game.execute(PutPieceCommand(0, 0, Medium));
+
+        game.execute(PutPieceCommand(1, 1, Small));
+
+        game.execute(MovePieceCommand(0, 0, 1, 1));
+
+        let last_event = arc.last_event.lock().unwrap().take();
+        let event = match last_event {
+            Some(event) => event,
+            _ => return Err(()),
+        };
+
+        match event {
+            BoardUpdateEvent(game_state) => match &game_state.board.squares[1][1] {
+                Some(piece) => {
+                    if piece.size == Medium && piece.color == Red {
+                        Ok(())
+                    } else {
+                        Err(())
+                    }
+                }
                 None => Err(()),
             },
             _ => Err(()),

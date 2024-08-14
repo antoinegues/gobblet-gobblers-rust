@@ -47,6 +47,14 @@ impl DebugConsole {
                         Small,
                     ))
                     .expect("Erreur lors de l'envoie de la commande"),
+                "3" => tx_command
+                    .send(GameCommand::MovePieceCommand(
+                        input[2..3].parse().unwrap(),
+                        input[4..5].parse().unwrap(),
+                        input[6..7].parse().unwrap(),
+                        input[8..9].parse().unwrap(),
+                    ))
+                    .expect("Erreur lors de l'envoie de la commande"),
                 _ => {
                     println!("Commande inconnue : {}", &input)
                 }
