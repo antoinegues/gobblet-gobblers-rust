@@ -1,7 +1,7 @@
-use super::piece::{Piece};
+use super::piece::Piece;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CannotPutPieceHere, SquareIsEmpty};
-use crate::model::game_state::{BoardState};
+use crate::model::game_state::BoardState;
 use crate::model::piece_size::PieceSize;
 use crate::model::player::Color;
 
@@ -31,7 +31,7 @@ impl Board {
 
     pub fn put_piece(&mut self, x: usize, y: usize, mut piece: Piece) -> Result<(), GameError> {
         if let Some(current_piece) = self.squares[x][y].take() {
-            if current_piece.cannot_be_nested(&piece) {
+            if current_piece.cannot_be_nested(piece.size) {
                 self.squares[x][y] = Some(current_piece);
                 return Err(CannotPutPieceHere(String::from(
                     "La pièce est trop petite pour être placer ici",
@@ -169,19 +169,17 @@ impl Board {
     }
 
     pub fn to_board_state(&self) -> BoardState {
-
-        let mut squares =  [[None, None, None], [None, None, None], [None, None, None]];
+        let mut squares = [[None, None, None], [None, None, None], [None, None, None]];
 
         for x in 0..3 {
             for y in 0..3 {
-                squares[x][y] = self.squares[x][y].as_ref().map(|piece| piece.to_piece_state());
+                squares[x][y] = self.squares[x][y]
+                    .as_ref()
+                    .map(|piece| piece.to_piece_state());
             }
         }
 
-
-        BoardState {
-            squares
-        }
+        BoardState { squares }
     }
 }
 

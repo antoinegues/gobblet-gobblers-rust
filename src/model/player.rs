@@ -1,9 +1,9 @@
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::PieceNotAvailable;
 use crate::model::game_state::PlayerState;
-use crate::model::piece_size::PieceSize::{Big, Medium, Small};
 use crate::model::piece::Piece;
 use crate::model::piece_size::PieceSize;
+use crate::model::piece_size::PieceSize::{Big, Medium, Small};
 
 pub struct Player {
     pub color: Color,
@@ -48,8 +48,8 @@ impl Player {
     pub fn to_player_state(&self) -> PlayerState {
         return PlayerState {
             color: self.color,
-            pieces: self.pieces.iter().map(|piece| { piece.size }).collect(),
-        }
+            pieces: self.pieces.iter().map(|piece| piece.size).collect(),
+        };
     }
 }
 

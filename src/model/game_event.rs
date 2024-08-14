@@ -8,4 +8,5 @@ pub enum GameEvent {
     BoardUpdateEvent(GameState),
     GameWinEvent(Color),
     GameErrorEvent(GameError),
+    ExitEvent,
 }

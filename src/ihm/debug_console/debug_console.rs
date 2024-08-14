@@ -1,15 +1,28 @@
 use crate::ihm::channel_listener::ChannelListener;
 use crate::model::game_command::GameCommand;
 use crate::model::game_event::GameEvent;
-use crate::model::piece_size::PieceSize::Small;
+use crate::model::piece_size::PieceSize::{Big, Medium, Small};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
 use std::{io, thread};
+use crate::model::piece_size::PieceSize;
 
 pub struct DebugConsole {
     rx_event: Option<Receiver<GameEvent>>,
     listener: Arc<ChannelListener>,
     tx_command: Sender<GameCommand>,
+}
+
+fn piece_size_from_number(i: &str) -> Result<PieceSize, ()> {
+    match i {
+        "1" => Ok(Small),
+        "2" => Ok(Medium),
+        "3" => Ok(Big),
+        _ => Err(()),
+    }
+
+
+
 }
 
 impl DebugConsole {
@@ -44,7 +57,7 @@ impl DebugConsole {
                     .send(GameCommand::PutPieceCommand(
                         input[2..3].parse().unwrap(),
                         input[4..5].parse().unwrap(),
-                        Small,
+                        piece_size_from_number(&input[6..7]).expect("Impossible de convertir"),
                     ))
                     .expect("Erreur lors de l'envoie de la commande"),
                 "3" => tx_command
@@ -54,6 +67,9 @@ impl DebugConsole {
                         input[6..7].parse().unwrap(),
                         input[8..9].parse().unwrap(),
                     ))
+                    .expect("Erreur lors de l'envoie de la commande"),
+                "4" => tx_command
+                    .send(GameCommand::ExitCommand)
                     .expect("Erreur lors de l'envoie de la commande"),
                 _ => {
                     println!("Commande inconnue : {}", &input)

@@ -1,10 +1,10 @@
 use crate::model::board::Board;
 use crate::model::game_error::GameError;
-use crate::model::game_error::GameError::{NotYourPiece, SquareIsEmpty};
+use crate::model::game_error::GameError::{CannotPutPieceHere, NotYourPiece, SquareIsEmpty};
 use crate::model::game_state::GameState;
 use crate::model::piece_size::PieceSize;
 use crate::model::player::Color::{Blue, Red};
-use crate::model::player::{Color, Player};
+use crate::model::player::Player;
 
 pub struct GameInstance {
     board: Board,
@@ -35,12 +35,33 @@ impl GameInstance {
         };
     }
 
+    fn check_piece_can_be_nested(
+        &self,
+        x: usize,
+        y: usize,
+        piece_size: PieceSize,
+    ) -> Result<(), GameError> {
+        let current_piece_size = match self.board.get_piece_size(x, y) {
+            Some(current_piece_size) => current_piece_size,
+            _ => return Ok(()),
+        };
+
+        if current_piece_size >= piece_size {
+            Err(CannotPutPieceHere(String::from(
+                "La pièce est trop petite pour être placer ici",
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn put_piece(
         &mut self,
         x: usize,
         y: usize,
         piece_size: PieceSize,
     ) -> Result<(), GameError> {
+        self.check_piece_can_be_nested(x, y, piece_size)?;
         let current_player = self.get_current_player();
         let piece = current_player.remove_piece(piece_size)?;
         self.board.put_piece(x, y, piece)?;
@@ -77,19 +98,15 @@ impl GameInstance {
         Ok(())
     }
 
-    pub fn get_piece_size(&self, x: usize, y: usize) -> Option<PieceSize> {
-        self.board.get_piece_size(x,y)
-    }
-
-    pub fn get_piece_color(&self, x: usize, y: usize) -> Option<Color> {
-        self.board.get_piece_color(x,y)
-    }
-
     pub fn to_game_state(&self) -> GameState {
         GameState {
-            players : [self.players[0].to_player_state(), self.players[1].to_player_state()],
+            players: [
+                self.players[0].to_player_state(),
+                self.players[1].to_player_state(),
+            ],
             board: self.board.to_board_state(),
             turn: self.turn,
+            winner_color: self.board.check_win(),
         }
     }
 }
@@ -139,13 +156,13 @@ mod tests {
             .put_piece(1, 1, Small)
             .expect("Impossible de placer la pièce");
 
-        assert_eq!(game_instance.get_piece_color(1, 1).unwrap(), Red);
+        assert_eq!(game_instance.board.get_piece_color(1, 1).unwrap(), Red);
 
         game_instance
             .put_piece(1, 1, Medium)
             .expect("Impossible de placer la pièce");
 
-        assert_eq!(game_instance.get_piece_color(1, 1).unwrap(), Blue);
+        assert_eq!(game_instance.board.get_piece_color(1, 1).unwrap(), Blue);
     }
 
     #[test]
@@ -156,7 +173,7 @@ mod tests {
             .put_piece(1, 1, Medium)
             .expect("Impossible de placer la pièce");
 
-        assert_eq!(game_instance.get_piece_color(1, 1).unwrap(), Red);
+        assert_eq!(game_instance.board.get_piece_color(1, 1).unwrap(), Red);
 
         assert!(game_instance.put_piece(1, 1, Medium).is_err());
 
@@ -164,7 +181,24 @@ mod tests {
             .put_piece(1, 1, Big)
             .expect("Impossible de placer la pièce");
 
-        assert_eq!(game_instance.get_piece_color(1, 1).unwrap(), Blue);
+        assert_eq!(game_instance.board.get_piece_color(1, 1).unwrap(), Blue);
+    }
+
+    #[test]
+    fn put_piece_player_error_player_keep_piece_test() {
+        let mut game_instance = GameInstance::default();
+
+        game_instance
+            .put_piece(1, 1, Medium)
+            .expect("Impossible de placer la pièce");
+
+        game_instance
+            .put_piece(1, 2, Medium)
+            .expect("Impossible de placer la pièce");
+
+        assert!(game_instance.put_piece(1, 1, Medium).is_err());
+
+        assert!(game_instance.players[0].remove_piece(Medium).is_ok());
     }
 
     #[test]
@@ -183,8 +217,8 @@ mod tests {
             .move_piece(1, 1, 2, 2)
             .expect("Impossible de déplacer la pièce");
 
-        assert_eq!(game_instance.get_piece_size(2,2).unwrap(), Medium);
-        assert_eq!(game_instance.get_piece_color(2,2).unwrap(), Red);
+        assert_eq!(game_instance.board.get_piece_size(2, 2).unwrap(), Medium);
+        assert_eq!(game_instance.board.get_piece_color(2, 2).unwrap(), Red);
     }
 
     #[test]
@@ -203,10 +237,11 @@ mod tests {
             .move_piece(1, 1, 2, 2)
             .expect("Impossible de déplacer la pièce");
 
+        game_instance
+            .put_piece(1, 1, Big)
+            .expect("Impossible de placer la pièce");
 
-        game_instance.put_piece(1,1, Big).expect("Impossible de placer la pièce");
-
-        assert_eq!(game_instance.get_piece_color(1,1).unwrap(), Blue);
+        assert_eq!(game_instance.board.get_piece_color(1, 1).unwrap(), Blue);
     }
 
     #[test]
@@ -228,13 +263,13 @@ mod tests {
         let mut game_instance = GameInstance::default();
 
         match game_instance.move_piece(1, 1, 2, 2) {
-            Err(SquareIsEmpty(game_error)) => Ok(()),
+            Err(SquareIsEmpty(_)) => Ok(()),
             _ => Err(()),
         }
     }
 
     #[test]
-    fn remove_piece_error_test() -> Result<(), ()>{
+    fn remove_piece_error_test() -> Result<(), ()> {
         let mut game_instance = GameInstance::default();
 
         game_instance
@@ -254,7 +289,7 @@ mod tests {
             .expect("Impossible de placer la pièce");
 
         match game_instance.put_piece(2, 2, Small) {
-            Err(PieceNotAvailable(game_error)) => Ok(()),
+            Err(PieceNotAvailable(_)) => Ok(()),
             _ => Err(()),
         }
     }

@@ -1,10 +1,11 @@
-use crate::model::game::GameCommand::{NewGameCommand, PutPieceCommand};
+use crate::model::game::GameCommand::*;
 use crate::model::game::GameEvent::{BoardUpdateEvent, GameErrorEvent, NewGameEvent};
 use crate::model::game_command::GameCommand;
 use crate::model::game_command::GameCommand::MovePieceCommand;
 use crate::model::game_error::GameError;
 use crate::model::game_error::GameError::{CurrentlyNoGame, UnknownError};
 use crate::model::game_event::GameEvent;
+use crate::model::game_event::GameEvent::ExitEvent;
 use crate::model::game_instance::GameInstance;
 use crate::model::game_state::GameState;
 use crate::model::listener::Listener;
@@ -68,7 +69,7 @@ impl Game {
         }
     }
 
-    pub fn execute(&mut self, game_command: GameCommand) {
+    pub fn execute(&mut self, game_command: GameCommand) -> bool {
         let command_result = match game_command {
             NewGameCommand => self.new_game().map(|game_state| NewGameEvent(game_state)),
             PutPieceCommand(x, y, size) => self
@@ -77,11 +78,16 @@ impl Game {
             MovePieceCommand(origin_x, origin_y, destination_x, destination_y) => self
                 .move_piece(origin_x, origin_y, destination_x, destination_y)
                 .map(|game_state| BoardUpdateEvent(game_state)),
-            _ => Err(UnknownError),
+            ExitCommand => Ok(ExitEvent),
         };
 
         let event = command_result.unwrap_or_else(|game_error| GameErrorEvent(game_error));
-        self.notify_all(event);
+        self.notify_all(event.clone());
+
+        match event {
+            ExitEvent => true,
+            _ => false,
+        }
     }
 
     pub fn subscribe<'b>(&'b mut self, listener: Arc<dyn Listener>) {
@@ -99,10 +105,10 @@ impl Game {
 mod tests {
     use crate::model::game::Game;
     use crate::model::game_command::GameCommand::{
-        MovePieceCommand, NewGameCommand, PutPieceCommand,
+        ExitCommand, MovePieceCommand, NewGameCommand, PutPieceCommand,
     };
     use crate::model::game_event::GameEvent;
-    use crate::model::game_event::GameEvent::{BoardUpdateEvent, NewGameEvent};
+    use crate::model::game_event::GameEvent::{BoardUpdateEvent, ExitEvent, NewGameEvent};
     use crate::model::listener::Listener;
     use crate::model::piece_size::PieceSize::{Medium, Small};
     use crate::model::player::Color::Red;
@@ -225,6 +231,33 @@ mod tests {
                     }
                 }
                 None => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
+
+    #[test]
+    fn exit_command_test() -> Result<(), ()> {
+        let mut game = Game::default();
+        let game_listener = GameEventListenerMock {
+            last_event: Mutex::new(None),
+        };
+
+        let arc = Arc::from(game_listener);
+        game.subscribe(Arc::clone(&arc) as Arc<dyn Listener>);
+
+        let exit = game.execute(NewGameCommand);
+        assert!(!exit);
+
+        let exit = game.execute(ExitCommand);
+
+        assert!(exit);
+        let last_event = arc.last_event.lock().unwrap().take();
+
+        match last_event {
+            Some(event) => match event {
+                ExitEvent => Ok(()),
+                _ => Err(()),
             },
             _ => Err(()),
         }

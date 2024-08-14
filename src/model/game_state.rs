@@ -6,6 +6,7 @@ pub struct GameState {
     pub board: BoardState,
     pub players: [PlayerState; 2],
     pub turn: u32,
+    pub winner_color: Option<Color>,
 }
 
 #[derive(Clone, Debug)]
@@ -17,7 +18,7 @@ pub struct BoardState {
 pub struct PieceState {
     pub color: Color,
     pub size: PieceSize,
-    pub nested_piece: Option<Box<PieceState>>
+    pub nested_piece: Option<Box<PieceState>>,
 }
 
 #[derive(Clone, Debug)]

@@ -22,12 +22,12 @@ impl Piece {
         self.nested_piece.take()
     }
 
-    pub fn can_be_nested(&self, parent_piece: &Piece) -> bool {
-        self.size < parent_piece.size
+    pub fn can_be_nested(&self, piece_size: PieceSize) -> bool {
+        self.size < piece_size
     }
 
-    pub fn cannot_be_nested(&self, parent_piece: &Piece) -> bool {
-        !self.can_be_nested(parent_piece)
+    pub fn cannot_be_nested(&self, piece_size: PieceSize) -> bool {
+        !self.can_be_nested(piece_size)
     }
     pub fn set_nested_piece(&mut self, nested_piece: Piece) {
         self.nested_piece = Some(Box::from(nested_piece));
@@ -37,12 +37,13 @@ impl Piece {
         PieceState {
             color: self.color,
             size: self.size,
-            nested_piece: self.nested_piece.as_ref().map(|nested_piece| Box::from(nested_piece.to_piece_state())),
+            nested_piece: self
+                .nested_piece
+                .as_ref()
+                .map(|nested_piece| Box::from(nested_piece.to_piece_state())),
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -63,14 +64,14 @@ mod tests {
     fn piece_can_be_nested_test() {
         let piece = Piece::new(Medium, Red);
 
-        assert!(piece.can_be_nested(&Piece::new(Big, Red)));
+        assert!(piece.can_be_nested(Big));
     }
 
     #[test]
     fn piece_cannot_be_nested_test() {
         let piece = Piece::new(Medium, Red);
 
-        assert!(piece.cannot_be_nested(&Piece::new(Small, Red)));
+        assert!(piece.cannot_be_nested(Small));
     }
 
     #[test]
